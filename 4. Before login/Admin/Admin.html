@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Admin | Time Slot Scheduler</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="Style.css">
+  <script src="/Config/Config.js"></script>
+
+  <style>
+    /* Overdue reminder banner */
+    .overdue-reminders-bar {
+      background: linear-gradient(90deg, #ffebee, #fff3e0);
+      border: 1.5px solid #ffcdd2;
+      border-radius: 1rem;
+      padding: 0.7rem 1.2rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.88rem;
+      color: #b71c1c;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .overdue-pill {
+      background: #ffcdd2;
+      color: #b71c1c;
+      border-radius: 2rem;
+      padding: 0.2rem 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .overdue-pill:hover { background: #ef9a9a; }
+
+    /* Overdue slot highlight */
+    .time-slot.overdue-slot {
+      border-color: #ffcdd2 !important;
+      background: #fff8f8 !important;
+    }
+
+    /* Approve choice modal buttons hover */
+    #approveManualBtn:hover, #approveScheduleBtn:hover {
+      border-color: #b34e1a !important;
+      background: #fff7ee !important;
+    }
+
+    /* Projects list */
+    .projects-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    .projects-btn {
+      background: #6b4c3b !important;
+    }
+    .projects-add-form {
+      background: #fefaf5;
+      border-radius: 1rem;
+      padding: 1rem;
+      border: 1px solid #f0e2d6;
+      margin-bottom: 1rem;
+    }
+    .projects-add-form h4 {
+      color: #7a3a10;
+      font-size: 0.95rem;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* YouTube extra fields */
+    .yt-extra-fields input,
+    .yt-extra-fields select {
+      font-size: 0.85rem;
+      padding: 0.5rem 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="admin-header">
+    <h1><i class="fas fa-calendar-alt"></i> Time Slot Admin</h1>
+    <div class="current-date" id="adminCurrentDate"></div>
+  </div>
+
+  <!-- Overdue manual reminders -->
+  <div id="overdueReminders" class="overdue-reminders-bar" style="display:none;"></div>
+
+  <div class="admin-controls">
+    <label for="adminDatePicker"><i class="fas fa-calendar-day"></i> View Date:</label>
+    <input type="date" id="adminDatePicker" aria-label="Select date to view">
+    <button id="refreshBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+    <button id="manageProjectsBtn" class="projects-btn"><i class="fas fa-folder"></i> Projects</button>
+    <!-- Admins & Log buttons injected by script.js for owner only -->
+  </div>
+
+  <div id="scheduleGrid" class="schedule-grid" aria-live="polite">Loading…</div>
+
+</div>
+
+<!-- Emergency footer -->
+<div class="emergency-footer">
+  <i class="fas fa-exclamation-circle"></i>
+  Emergency? Contact admin via
+  <a href="https://wa.me/94767633875" target="_blank" rel="noopener">
+    <i class="fab fa-whatsapp"></i> WhatsApp
+  </a>
+</div>
+
+
+<!-- Post Details Modal -->
+<div id="postModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content">
+    <div id="modalBody"></div>
+    <div class="button-group" id="modalButtonGroup"></div>
+  </div>
+</div>
+
+
+<!-- Edit Post Modal (content + media only) -->
+<div id="editModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="max-width:600px;">
+    <h3><i class="fas fa-pen-alt"></i> Edit Post</h3>
+    <form id="editForm" novalidate>
+
+      <div class="modal-field">
+        <label for="editContent"><i class="fas fa-align-left"></i> Content</label>
+        <textarea id="editContent" rows="5" class="edit-input" required></textarea>
+      </div>
+
+      <div class="modal-field">
+        <label for="editMediaFile"><i class="fas fa-image"></i> Media (upload new file)</label>
+        <input type="file" id="editMediaFile" accept="image/jpeg,image/png,image/gif,image/webp,video/*">
+        <div id="mediaPreview" style="margin-top:10px;max-width:100%;"></div>
+        <small>Uploading a new file replaces the current media.</small>
+      </div>
+
+      <div class="button-group" style="justify-content:flex-end;">
+        <button type="button" id="cancelEditBtn" class="close">Cancel</button>
+        <button type="submit" class="approve"><i class="fas fa-save"></i> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Change Time Slot Modal (future dates only) -->
+<div id="changeSlotModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="max-width:480px;">
+    <h3><i class="fas fa-exchange-alt"></i> Change Time Slot</h3>
+
+    <div class="modal-field">
+      <label>Current Date</label>
+      <input type="text" id="currentSlotDate" class="edit-input" disabled>
+    </div>
+
+    <div class="modal-field">
+      <label>Current Slot</label>
+      <input type="text" id="currentSlotValue" class="edit-input" disabled>
+    </div>
+
+    <div class="modal-field">
+      <label for="newSlotDate">New Date <small style="color:#2e7d32;font-weight:400;">(future dates only)</small></label>
+      <input type="date" id="newSlotDate" class="edit-input">
+    </div>
+
+    <div class="modal-field">
+      <label for="newSlotSelect">New Time Slot</label>
+      <select id="newSlotSelect" class="edit-input">
+        <option value="">— Select a slot —</option>
+      </select>
+      <small id="slotAvailabilityNote"></small>
+    </div>
+
+    <div class="button-group" style="justify-content:flex-end;">
+      <button type="button" id="cancelChangeSlotBtn" class="close">Cancel</button>
+      <button type="button" id="confirmChangeSlotBtn" class="approve">Change Slot</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Social Media (Buffer) Publish Modal -->
+<div id="bufferModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="max-width:580px;">
+    <h3><i class="fas fa-globe"></i> Publish to Social Media</h3>
+    <p>Select platforms and publish immediately.</p>
+    <div id="bufferProfilesList" class="profile-checkbox-list"></div>
+    <div class="button-group" style="justify-content:flex-end;">
+      <button type="button" id="cancelBufferBtn" class="close">Cancel</button>
+      <button type="button" id="confirmBufferBtn" class="approve">
+        <i class="fas fa-share-alt"></i> Publish Now
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Projects Management Modal -->
+<div id="projectsModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="max-width:520px;">
+    <h3><i class="fas fa-folder-open"></i> Manage Projects</h3>
+    <p style="font-size:0.85rem;color:#8a6a5a;margin-bottom:1rem;">
+      Projects appear in the submit form dropdown. Toggle status between Ongoing and To Be.
+    </p>
+
+    <div id="projectsList" class="projects-list"></div>
+
+    <div class="projects-add-form">
+      <h4><i class="fas fa-plus-circle"></i> Add New Project</h4>
+      <form id="addProjectForm" novalidate>
+        <div class="modal-field">
+          <label for="newProjectName">Project Name</label>
+          <input type="text" id="newProjectName" class="edit-input" placeholder="e.g. Summer Campaign" required>
+        </div>
+        <div class="modal-field" style="display:flex;gap:1rem;align-items:flex-end;">
+          <div style="flex:1;">
+            <label for="newProjectStatus">Status</label>
+            <select id="newProjectStatus" class="edit-input">
+              <option value="ongoing">Ongoing</option>
+              <option value="tobe">To Be</option>
+            </select>
+          </div>
+          <div>
+            <label for="newProjectColor">Color</label>
+            <input type="color" id="newProjectColor" value="#b34e1a" style="height:38px;border-radius:0.5rem;border:1px solid #ddd;cursor:pointer;">
+          </div>
+        </div>
+        <div class="button-group" style="justify-content:flex-end;margin-top:0.5rem;">
+          <button type="submit" class="approve"><i class="fas fa-plus"></i> Add Project</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="button-group" style="justify-content:flex-end;">
+      <button type="button" id="cancelProjectsBtn" class="close">Close</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay" role="status" aria-label="Processing">
+  <div class="loading-container">
+    <div class="spinner"></div>
+    <div class="loading-text">Processing…</div>
+  </div>
+</div>
+
+
+<!-- WhatsApp Modal -->
+<div id="whatsappModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="wa-modal-header">
+      <div class="wa-modal-icon"><i class="fab fa-whatsapp"></i></div>
+      <div>
+        <h3 style="margin:0;font-size:1.1rem;color:white;">Send via WhatsApp</h3>
+        <p style="margin:0;font-size:0.8rem;color:rgba(255,255,255,0.8);">Select destinations and send immediately</p>
+      </div>
+    </div>
+    <div class="wa-status-bar">
+      <i class="fas fa-circle" id="waStatusDot"></i>
+      <span id="waStatus" style="font-size:0.85rem;font-weight:500;color:#555;">Checking connection...</span>
+    </div>
+    <div id="waQrCode" style="text-align:center;margin-bottom:1rem;"></div>
+    <div class="wa-section-label">Select destinations</div>
+    <div id="waTargetsList" style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;"></div>
+    <div class="wa-manual-label">Or enter a number manually</div>
+    <input type="tel" id="waContactInput" class="edit-input" placeholder="e.g. 94767633875 (country code, no +)" style="font-size:0.9rem;">
+    <div id="waSelCount" style="font-size:12px;color:#999;text-align:center;margin-top:10px;"></div>
+    <div class="button-group" style="justify-content:flex-end;">
+      <button type="button" id="cancelWaBtn" class="close">Cancel</button>
+      <button type="button" id="confirmWaBtn" disabled><i class="fab fa-whatsapp"></i> Publish</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="script.js"></script>
+<script src="whatsapp-admin.js"></script>
+</body>
+</html>
