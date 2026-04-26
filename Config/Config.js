@@ -38,7 +38,7 @@ const CONFIG = {
   },
 
   WHATSAPP: {
-    SERVER_URL: "https://maker-molecular-fat-cross.trycloudflare.com", // <- Replace with your VPS IP
+    SERVER_URL: "https://rmgularly-keith-ultimately-bidding.trycloudflare.com", // <- Replace with your VPS IP
     API_SECRET: "hiru12345"  // <- Must match server .env
   },
 
