@@ -39,7 +39,7 @@ const CONFIG = {
 
   WHATSAPP: {
     SERVER_URL: "https://champagne-appointment-consequence-meeting.trycloudflare.com", // <- Replace with your VPS IP
-    API_SECRET: hiru12345 // <- Must match server .env
+    API_SECRET: "hiru12345"// <- Must match server .env
   },
 
   /** General application settings */
